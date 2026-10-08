@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.quartermaster.const import DOMAIN
 
-from .conftest import HOUSEHOLD, ITEMS, STATUS, TOKEN, URL
+from .conftest import HOUSEHOLD, ITEMS, SERVER_ID, STATUS, TOKEN, URL
 
 NEW_URL = "https://shopping.example.com"
 
@@ -52,7 +52,7 @@ async def test_user_flow(hass: HomeAssistant, aioclient_mock: AiohttpClientMocke
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == HOUSEHOLD
     assert result["data"] == {"url": URL, "token": "qm_abc", "verify_ssl": False}
-    assert result["result"].unique_id == URL
+    assert result["result"].unique_id == SERVER_ID
 
     (_, status_url, _, status_headers), (_, items_url, _, items_headers) = aioclient_mock.mock_calls
     assert (str(status_url), str(items_url)) == (f"{URL}/api/status", f"{URL}/api/ha/items")
@@ -166,7 +166,7 @@ async def test_reconfigure_new_address(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert config_entry.data == {"url": NEW_URL, "token": TOKEN, "verify_ssl": False}
-    assert config_entry.unique_id == NEW_URL
+    assert config_entry.unique_id == SERVER_ID
     assert aioclient_mock.mock_calls[1][3]["Authorization"] == f"Bearer {TOKEN}"
 
 
@@ -182,7 +182,7 @@ async def test_reconfigure_same_address_new_token(
     )
     assert result["reason"] == "reconfigure_successful"
     assert config_entry.data["token"] == "qm_rotated"
-    assert config_entry.unique_id == URL
+    assert config_entry.unique_id == SERVER_ID
 
 
 async def test_reconfigure_to_other_entry(
@@ -198,3 +198,108 @@ async def test_reconfigure_to_other_entry(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert aioclient_mock.call_count == 0
+
+
+OLD_STATUS = {k: v for k, v in STATUS.items() if k not in ("server_id", "ha_api")}
+OTHER_SERVER = {**STATUS, "server_id": "another-server"}
+
+
+def url_entry(url: str = URL) -> MockConfigEntry:
+    """An entry made before servers had an ID (unique ID is the address)."""
+    return MockConfigEntry(domain=DOMAIN, unique_id=url, data={"url": url, "token": TOKEN, "verify_ssl": True})
+
+
+async def test_user_flow_old_server(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker) -> None:
+    """A server without a server ID is identified by its address."""
+    healthy(aioclient_mock, status=OLD_STATUS)
+    result = await start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"url": f"{URL.upper()}/", "token": TOKEN, "verify_ssl": True}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].unique_id == URL
+
+
+async def test_user_flow_same_server_other_address(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, config_entry: MockConfigEntry
+) -> None:
+    """The same server under a second address is refused once it answers with its ID."""
+    config_entry.add_to_hass(hass)
+    healthy(aioclient_mock, NEW_URL)
+    result = await start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"url": NEW_URL, "token": TOKEN, "verify_ssl": True}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
+async def test_reauth_wrong_server(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, config_entry: MockConfigEntry
+) -> None:
+    """A different server now answering at the address isn't accepted on reauth."""
+    config_entry.add_to_hass(hass)
+    healthy(aioclient_mock, status=OTHER_SERVER)
+    result = await config_entry.start_reauth_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"token": "qm_new"})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "wrong_server"
+    assert config_entry.data["token"] == TOKEN
+
+
+@pytest.mark.parametrize(
+    ("status", "reason"),
+    [(OTHER_SERVER, "wrong_server"), (OLD_STATUS, "cannot_verify_server")],
+)
+async def test_reconfigure_must_be_same_server(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
+    status: dict[str, Any],
+    reason: str,
+) -> None:
+    """Reconfigure only moves an entry to the same server, and refuses when it can't tell."""
+    config_entry.add_to_hass(hass)
+    healthy(aioclient_mock, NEW_URL, status=status)
+    result = await config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"url": NEW_URL, "verify_ssl": True})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == reason
+    assert config_entry.data["url"] == URL
+
+
+async def test_reconfigure_address_entry_learns_server_id(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """An address-based entry takes the server ID when reconfigured; an old server keeps the address."""
+    entry = url_entry()
+    entry.add_to_hass(hass)
+    healthy(aioclient_mock, NEW_URL, status=OLD_STATUS)
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"url": NEW_URL, "verify_ssl": True})
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.unique_id == NEW_URL
+
+    aioclient_mock.clear_requests()
+    healthy(aioclient_mock)
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"url": URL, "verify_ssl": True})
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.unique_id == SERVER_ID
+
+
+async def test_reconfigure_onto_server_of_other_entry(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, config_entry: MockConfigEntry
+) -> None:
+    """An address-based entry can't be moved onto a server another entry already has."""
+    config_entry.add_to_hass(hass)
+    entry = url_entry(NEW_URL)
+    entry.add_to_hass(hass)
+    healthy(aioclient_mock, "http://third.test")
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"url": "http://third.test", "verify_ssl": True}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.unique_id == NEW_URL

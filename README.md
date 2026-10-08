@@ -41,13 +41,13 @@ And:
 
 - Adds from a voice satellite are credited to the satellite's area ("Kitchen"), and adds by a logged-in Home Assistant user to that user, so the Quartermaster app shows who added what (see [Attribution](#attribution)).
 - Events for automations: `quartermaster_request_added`, `quartermaster_trip_started`, `quartermaster_trip_ended` (see [Events](#events)).
-- Repairs when something needs your attention: the server has been unreachable for 30 minutes, live updates are blocked (usually by a reverse proxy), or the server is too old.
+- Repairs when something needs your attention: the server has been unreachable for 30 minutes, live updates are blocked (usually by a reverse proxy), or the server is too old or too new for this version of the integration.
 - Diagnostics you can attach to an issue, with the token, server address, household name and item text removed.
 
 ## Requirements
 
 - Home Assistant 2026.9 or later. Tested on 2026.9.4 and 2026.10.0.
-- A Quartermaster server, version 0.1.0 or later, reachable from Home Assistant.
+- A Quartermaster server that speaks Home Assistant API 1 (`ha_api` in `/api/status`; any server from October 2026 on), reachable from Home Assistant. Older servers still work, but show a repair asking you to update.
 - An admin account in Quartermaster, to create the Home Assistant token.
 
 ## Installation
@@ -87,9 +87,9 @@ HACS offers new releases as updates.
 | Home Assistant token | The `qm_...` token from step 1. It must be a Home Assistant token; device tokens are refused. |
 | Verify SSL certificate | Leave on. Turn off only for an `https://` server with a self-signed certificate. |
 
-Home Assistant checks that it can reach the server and read the list with the token before it saves anything. Each server can be added once. There are no further options.
+Home Assistant checks that it can reach the server and read the list with the token before it saves anything. Each server can be added once: Quartermaster reports a stable server ID, so the same server under a second address (say, a LAN IP and a public name) is recognized and refused. There are no further options.
 
-**Moving the server or rotating the token**: open **Settings → Devices & services → Quartermaster**, choose the three-dot menu on the entry, and choose **Reconfigure**. Leave the token empty to keep the current one.
+**Moving the server or rotating the token**: open **Settings → Devices & services → Quartermaster**, choose the three-dot menu on the entry, and choose **Reconfigure**. Leave the token empty to keep the current one. The new address must be the same Quartermaster server (same server ID); a different server is refused, so add it as a new entry instead. A server restored from a backup keeps its ID; a freshly set-up one gets a new ID.
 
 **Revoked token**: if Quartermaster stops accepting the token, the integration asks for a new one (a **Reconfigure** or **Re-authenticate** prompt on the integration card). Create a new token in Quartermaster and paste it.
 
@@ -142,7 +142,7 @@ Quartermaster parses what you say like typing in the app: "add 2 dozen eggs to t
 | Remove (`todo.remove_item`) | Cancels an open item, clears a completed one |
 | `todo.remove_completed_items` | Clears every bought item |
 
-Due dates and descriptions set in Home Assistant aren't stored. If an action fails, Home Assistant shows why: a change Quartermaster refuses (for example an empty item) as a validation error, a server that can't be reached or answers with an error as a failure.
+Due dates and descriptions set in Home Assistant aren't stored. Changing or removing an item that someone already removed, cleared or merged in the app isn't an error: the list just refreshes. If an action fails, Home Assistant shows why: a change Quartermaster refuses (for example an empty item) as a validation error, a server that can't be reached or answers with an error as a failure.
 
 ## Attribution
 
@@ -274,7 +274,7 @@ After each reconnect the integration also re-reads the server's version and hous
 - Attribution relies on wrapping two of Home Assistant's intent handlers. If Home Assistant changes how those are registered, adds keep working but stop being attributed.
 - "add milk to the list" (without a list name) always goes to Home Assistant's built-in Shopping list; see [Voice](#voice-add-milk-to-the-shopping-list).
 - Quartermaster servers aren't discovered automatically; you enter the address.
-- A server is identified by its address. Two different addresses for the same server (say, a LAN IP and a public name) count as two servers, so add only one.
+- Servers older than October 2026 don't report a server ID; for them the address identifies the server, and reconfigure can't confirm a move. Entries switch to the server ID automatically once the server is updated.
 - Store views, store placement, caveats and trips are managed in the Quartermaster app, not in Home Assistant.
 
 ## Troubleshooting
@@ -282,7 +282,8 @@ After each reconnect the integration also re-reads the server's version and hous
 - **Repairs**: Settings → System → Repairs shows:
   - *Quartermaster server unreachable*: Home Assistant couldn't reach the server for 30 minutes. Check that it's running; if it moved, use **Reconfigure**.
   - *Quartermaster live updates aren't working*: the server answers, but the event stream hasn't connected for 15 minutes. This is almost always a reverse proxy buffering or closing `text/event-stream` responses on `/api/events`. Turn off response buffering for that path (for nginx, `proxy_buffering off;`; Traefik and Caddy usually stream it already) and allow idle connections for at least 60 seconds. Quartermaster sends a comment every 25 seconds and the integration reconnects if it hears nothing for 60.
-  - *Quartermaster server is too old*: update Quartermaster.
+  - *Quartermaster server is too old*: the server doesn't speak this integration's Home Assistant API (or predates API versioning). Update Quartermaster.
+  - *Quartermaster server is newer than this integration*: the server speaks a newer Home Assistant API. Update this integration in HACS.
 
   Each one clears itself when the problem is fixed.
 - **"Couldn't reach Quartermaster" during setup**: use the address you'd type in a browser on the Home Assistant machine. From a Home Assistant container, `localhost` is the container itself, not the host.

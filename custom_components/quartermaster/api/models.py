@@ -79,6 +79,10 @@ class ServerStatus:
     protocol: int | None
     setup_required: bool
     household: str
+    # Stable for the life of the server's database; None on servers before it existed.
+    server_id: str | None = None
+    # Version of the Home Assistant API; None on servers before it existed.
+    ha_api: int | None = None
 
     @classmethod
     def from_dict(cls, data: Any) -> ServerStatus:
@@ -89,9 +93,11 @@ class ServerStatus:
         household = data.get("household")
         return cls(
             version=data["version"],
-            protocol=protocol if isinstance(protocol, int) else None,
+            protocol=_int_or_none(protocol),
             setup_required=bool(data.get("setup_required")),
             household=household.strip() if isinstance(household, str) else "",
+            server_id=_str_or_none(data.get("server_id")),
+            ha_api=_int_or_none(data.get("ha_api")),
         )
 
     @property
@@ -152,3 +158,11 @@ def parse_version(version: str) -> tuple[int, ...]:
     if match is None:
         return ()
     return tuple(int(part) for part in match.group(1).split("."))
+
+
+def _str_or_none(value: Any) -> str | None:
+    return value.strip() or None if isinstance(value, str) else None
+
+
+def _int_or_none(value: Any) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None

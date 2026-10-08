@@ -191,7 +191,6 @@ async def test_delete(
     ("response", "error", "key"),
     [
         ({"status": 400, "json": {"error": "summary required"}}, ServiceValidationError, "request_rejected"),
-        ({"status": 404, "json": {"error": "No such item"}}, ServiceValidationError, "item_gone"),
         ({"status": 500, "json": {"error": "database locked"}}, HomeAssistantError, "server_error"),
         ({"exc": TimeoutError()}, HomeAssistantError, "cannot_connect"),
         ({"status": 401, "json": {"error": "Not signed in"}}, HomeAssistantError, "invalid_auth"),
@@ -381,3 +380,23 @@ async def test_intent_hooks_give_up(
         async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2.1))
         await hass.async_block_till_done()
     assert not attribution.async_intent_hooks_ready(hass)
+
+
+async def test_items_gone_meanwhile(
+    hass: HomeAssistant, config_entry: MockConfigEntry, mock_api: AiohttpClientMocker, fake_stream: FakeStream
+) -> None:
+    """An item removed in the app meanwhile (404) isn't an error: the list just refreshes."""
+    for method in (mock_api.patch, mock_api.delete):
+        method(f"{URL}/api/ha/items/req-1", status=404, json={"error": "No such item"})
+    mock_api.delete(f"{URL}/api/ha/items/req-2", json={"ok": True})
+    await setup_entry(hass, config_entry)
+    before = len(calls(mock_api, "GET", "/api/ha/items"))
+    await call(hass, "update_item", {"item": "Eggs", "status": "completed"})
+    # Let the refresh debouncer's cooldown pass.
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1))
+    await hass.async_block_till_done()
+    await call(hass, "remove_item", {"item": ["Eggs", "Bread"]})
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    await hass.async_block_till_done()
+    assert [url for url, _ in calls(mock_api, "DELETE")] == [f"{URL}/api/ha/items/req-1", f"{URL}/api/ha/items/req-2"]
+    assert len(calls(mock_api, "GET", "/api/ha/items")) == before + 2

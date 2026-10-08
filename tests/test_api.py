@@ -24,7 +24,7 @@ from custom_components.quartermaster.api import (
     parse_version,
 )
 
-from .conftest import ITEMS, PRESENCE, STATUS, TOKEN, URL
+from .conftest import ITEMS, PRESENCE, SERVER_ID, STATUS, TOKEN, URL
 
 
 @pytest.fixture
@@ -37,7 +37,9 @@ async def test_status_needs_no_token(client: QuartermasterClient, aioclient_mock
     """Status is read without the token and parsed."""
     aioclient_mock.get(f"{URL}/api/status", json=STATUS)
     status = await client.async_get_status()
-    assert status == ServerStatus(version="0.1.0", protocol=1, setup_required=False, household="Maple Street")
+    assert status == ServerStatus(
+        version="0.1.0", protocol=1, setup_required=False, household="Maple Street", server_id=SERVER_ID, ha_api=1
+    )
     assert status.household_name == "Maple Street"
     assert "Authorization" not in aioclient_mock.mock_calls[0][3]
 
@@ -49,6 +51,7 @@ async def test_status_needs_no_token(client: QuartermasterClient, aioclient_mock
         ({"version": "0.1.0", "household": "  "}, None, None),
         ({"version": "0.1.0", "protocol": "1"}, None, None),
         ({"version": "0.1.0", "protocol": 2, "household": " Home "}, "Home", 2),
+        ({"version": "0.1.0", "protocol": True}, None, None),
     ],
 )
 def test_status_defaults(data: dict[str, object], household_name: str | None, protocol: int | None) -> None:
@@ -56,6 +59,21 @@ def test_status_defaults(data: dict[str, object], household_name: str | None, pr
     status = ServerStatus.from_dict(data)
     assert status.household_name == household_name
     assert status.protocol == protocol
+
+
+@pytest.mark.parametrize(
+    ("data", "server_id", "ha_api"),
+    [
+        ({"version": "0.1.0"}, None, None),
+        ({"version": "0.1.0", "server_id": "  ", "ha_api": "1"}, None, None),
+        ({"version": "0.1.0", "server_id": 5, "ha_api": False}, None, None),
+        ({"version": "0.1.0", "server_id": " abc ", "ha_api": 2}, "abc", 2),
+    ],
+)
+def test_status_identity(data: dict[str, object], server_id: str | None, ha_api: int | None) -> None:
+    """Servers before 0.1.x lacked server_id and ha_api; odd values are ignored."""
+    status = ServerStatus.from_dict(data)
+    assert (status.server_id, status.ha_api) == (server_id, ha_api)
 
 
 @pytest.mark.parametrize("data", [[], {"household": "x"}, {"version": 1}])

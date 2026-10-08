@@ -50,8 +50,10 @@
     },
     "abort": {
       "already_configured": "This Quartermaster server is already set up.",
+      "cannot_verify_server": "That Quartermaster server is too old to confirm it's the same server as this entry. Update Quartermaster, then try again.",
       "reauth_successful": "Token updated.",
-      "reconfigure_successful": "Connection updated."
+      "reconfigure_successful": "Connection updated.",
+      "wrong_server": "That address is a different Quartermaster server than this entry. To use it, add it as a new entry instead."
     }
   },
   "entity": {
@@ -77,9 +79,6 @@
     "invalid_auth": {
       "message": "Quartermaster rejected the token. Open the integration to enter a new one."
     },
-    "item_gone": {
-      "message": "That item is no longer on the Quartermaster list ({error})."
-    },
     "item_not_found": {
       "message": "No item {item} on the Quartermaster list."
     },
@@ -94,6 +93,10 @@
     }
   },
   "issues": {
+    "incompatible_server": {
+      "title": "Quartermaster server is newer than this integration",
+      "description": "{title} runs Quartermaster {version}, which speaks Home Assistant API {ha_api}, but this integration speaks {supported_ha_api}. Some features may not work. Update the Quartermaster integration (in HACS); this issue clears itself once the versions match."
+    },
     "server_unreachable": {
       "title": "Quartermaster server unreachable",
       "description": "Home Assistant hasn't been able to reach Quartermaster at {url} ({title}) for over 30 minutes. The list in Home Assistant is unavailable until it can.\n\nCheck that the server is running. If it moved to a new address, open **Settings → Devices & services → Quartermaster**, choose the three-dot menu on the entry and **Reconfigure**. This issue clears itself once the server answers again."
@@ -104,7 +107,7 @@
     },
     "unsupported_server_version": {
       "title": "Quartermaster server is too old",
-      "description": "{title} runs Quartermaster {version}, but this integration needs {min_version} or later. Some features may not work. Update the Quartermaster server; this issue clears itself once it reconnects with a supported version."
+      "description": "{title} runs Quartermaster {version}, which is older than this integration supports. Some features may not work. Update the Quartermaster server; this issue clears itself once it reconnects with a supported version."
     }
   }
 }

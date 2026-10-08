@@ -299,10 +299,10 @@ async def test_reconnect_refreshes_status(
     coordinator = config_entry.runtime_data
 
     mock_api.clear_requests()
-    mock_api.get(f"{URL}/api/status", json={**STATUS, "version": "0.0.1"})
+    mock_api.get(f"{URL}/api/status", json={**STATUS, "ha_api": 2})
     mock_api.get(f"{URL}/api/ha/items", json=ITEMS)
     await connect(hass, fake_stream)
-    assert issue(hass, config_entry, "unsupported_server_version") is not None
+    assert issue(hass, config_entry, "incompatible_server") is not None
 
     mock_api.clear_requests()
     mock_api.get(f"{URL}/api/status", json={**STATUS, "version": "0.3.0", "household": "Elm Road"})
@@ -311,7 +311,7 @@ async def test_reconnect_refreshes_status(
     device = device_registry.async_get_device_by_identifier((DOMAIN, config_entry.entry_id), config_entry.entry_id)
     assert device is not None
     assert (device.name, device.sw_version) == ("Elm Road", "0.3.0")
-    assert issue(hass, config_entry, "unsupported_server_version") is None
+    assert issue(hass, config_entry, "incompatible_server") is None
 
     # Unchanged status: nothing to do.
     await coordinator.async_refresh_status()

@@ -87,14 +87,19 @@ async def test_old_server_raises_issue(
     hass: HomeAssistant, config_entry: MockConfigEntry, aioclient_mock: AiohttpClientMocker, fake_stream: FakeStream
 ) -> None:
     """A server older than supported raises a repair issue, removed on unload."""
-    aioclient_mock.get(f"{URL}/api/status", json={**STATUS, "version": "0.0.9"})
+    aioclient_mock.get(f"{URL}/api/status", json={k: v for k, v in STATUS.items() if k != "ha_api"})
     aioclient_mock.get(f"{URL}/api/ha/items", json=ITEMS)
     aioclient_mock.get(f"{URL}/api/presence", json=[])
     await setup_entry(hass, config_entry)
     issue_id = f"unsupported_server_version_{config_entry.entry_id}"
     issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None
-    assert issue.translation_placeholders == {"title": HOUSEHOLD, "version": "0.0.9", "min_version": "0.1.0"}
+    assert issue.translation_placeholders == {
+        "title": HOUSEHOLD,
+        "version": "0.1.0",
+        "ha_api": "None",
+        "supported_ha_api": "1",
+    }
 
     assert await hass.config_entries.async_unload(config_entry.entry_id)
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
@@ -106,7 +111,7 @@ async def test_failed_unload_keeps_issues(
     hass: HomeAssistant, config_entry: MockConfigEntry, aioclient_mock: AiohttpClientMocker, fake_stream: FakeStream
 ) -> None:
     """If the platforms can't unload, the entry's repair issues stay."""
-    aioclient_mock.get(f"{URL}/api/status", json={**STATUS, "version": "0.0.9"})
+    aioclient_mock.get(f"{URL}/api/status", json={**STATUS, "ha_api": 0})
     aioclient_mock.get(f"{URL}/api/ha/items", json=ITEMS)
     aioclient_mock.get(f"{URL}/api/presence", json=[])
     await setup_entry(hass, config_entry)

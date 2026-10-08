@@ -103,13 +103,20 @@ class QuartermasterTodoListEntity(QuartermasterEntity, TodoListEntity):
             return
         via = await async_resolve_via(self.hass, self._action_context())
         async with self._refresh_after():
-            await self.coordinator.client.async_update_item(uid, summary=summary, status=status, via=via)
+            try:
+                await self.coordinator.client.async_update_item(uid, summary=summary, status=status, via=via)
+            except QuartermasterNotFoundError:
+                # Removed, cleared or merged in the app meanwhile; the refresh drops it.
+                LOGGER.debug("Item %s is no longer on the list", uid)
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
         """Cancel open items, clear bought ones."""
         async with self._refresh_after():
             for uid in uids:
-                await self.coordinator.client.async_delete_item(uid)
+                try:
+                    await self.coordinator.client.async_delete_item(uid)
+                except QuartermasterNotFoundError:
+                    LOGGER.debug("Item %s was already gone", uid)
 
     @asynccontextmanager
     async def _refresh_after(self) -> AsyncIterator[None]:
@@ -119,10 +126,6 @@ class QuartermasterTodoListEntity(QuartermasterEntity, TodoListEntity):
         except QuartermasterAuthError as err:
             self.coordinator.config_entry.async_start_reauth(self.hass)
             raise HomeAssistantError(translation_domain=DOMAIN, translation_key="invalid_auth") from err
-        except QuartermasterNotFoundError as err:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN, translation_key="item_gone", translation_placeholders={"error": str(err)}
-            ) from err
         except QuartermasterRequestError as err:
             if err.status < 500:
                 raise ServiceValidationError(

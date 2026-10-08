@@ -26,7 +26,6 @@ from .api import (
     QuartermasterRequestError,
     ServerStatus,
     StreamEvent,
-    parse_version,
 )
 from .const import (
     DEFAULT_NAME,
@@ -34,20 +33,22 @@ from .const import (
     EVENT_PREFIX,
     FALLBACK_POLL_INTERVAL,
     FORWARDED_EVENTS,
+    ISSUE_INCOMPATIBLE_SERVER,
     ISSUE_SERVER_UNREACHABLE,
     ISSUE_STREAM_UNAVAILABLE,
     ISSUE_UNSUPPORTED_VERSION,
     LOGGER,
-    MIN_SERVER_VERSION,
     SERVER_UNREACHABLE_AFTER,
     STREAM_BACKOFF_MAX,
     STREAM_BACKOFF_MIN,
     STREAM_UNAVAILABLE_AFTER,
+    SUPPORTED_HA_API,
 )
+from .identity import async_adopt_server_id
 
 type QuartermasterConfigEntry = ConfigEntry[QuartermasterCoordinator]
 
-ISSUES = (ISSUE_SERVER_UNREACHABLE, ISSUE_STREAM_UNAVAILABLE, ISSUE_UNSUPPORTED_VERSION)
+ISSUES = (ISSUE_SERVER_UNREACHABLE, ISSUE_STREAM_UNAVAILABLE, ISSUE_UNSUPPORTED_VERSION, ISSUE_INCOMPATIBLE_SERVER)
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,27 +153,35 @@ class QuartermasterCoordinator(DataUpdateCoordinator[QuartermasterData]):
 
     @callback
     def async_check_server_version(self) -> None:
-        """Raise a repair issue when the server is older than this integration supports."""
-        issue = issue_id(ISSUE_UNSUPPORTED_VERSION, self.config_entry)
-        if parse_version(self.status.version) >= MIN_SERVER_VERSION:
-            ir.async_delete_issue(self.hass, DOMAIN, issue)
-            return
-        LOGGER.warning(
-            "Quartermaster %s is older than the supported %s", self.status.version, _version(MIN_SERVER_VERSION)
-        )
-        ir.async_create_issue(
-            self.hass,
-            DOMAIN,
-            issue,
-            is_fixable=False,
-            severity=ir.IssueSeverity.ERROR,
-            translation_key=ISSUE_UNSUPPORTED_VERSION,
-            translation_placeholders={
-                "title": self.config_entry.title,
-                "version": self.status.version,
-                "min_version": _version(MIN_SERVER_VERSION),
-            },
-        )
+        """Raise a repair issue when the server's Home Assistant API isn't the one this integration speaks."""
+        ha_api = self.status.ha_api
+        too_old = ha_api is None or ha_api < SUPPORTED_HA_API
+        too_new = ha_api is not None and ha_api > SUPPORTED_HA_API
+        placeholders = {
+            "title": self.config_entry.title,
+            "version": self.status.version,
+            "ha_api": str(ha_api),
+            "supported_ha_api": str(SUPPORTED_HA_API),
+        }
+        for issue, raise_it in ((ISSUE_UNSUPPORTED_VERSION, too_old), (ISSUE_INCOMPATIBLE_SERVER, too_new)):
+            if not raise_it:
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id(issue, self.config_entry))
+                continue
+            LOGGER.warning(
+                "Quartermaster %s speaks Home Assistant API %s; this integration speaks %s",
+                self.status.version,
+                ha_api,
+                SUPPORTED_HA_API,
+            )
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id(issue, self.config_entry),
+                is_fixable=False,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key=issue,
+                translation_placeholders=placeholders,
+            )
 
     async def async_refresh_status(self) -> None:
         """Re-read /api/status (after a reconnect the server may have been upgraded or renamed)."""
@@ -185,6 +194,7 @@ class QuartermasterCoordinator(DataUpdateCoordinator[QuartermasterData]):
             return
         self.status = status
         self.async_check_server_version()
+        async_adopt_server_id(self.hass, self.config_entry, status)
         registry = dr.async_get(self.hass)
         if device := registry.async_get_device_by_identifier(
             (DOMAIN, self.config_entry.entry_id), self.config_entry.entry_id
@@ -299,7 +309,3 @@ class QuartermasterCoordinator(DataUpdateCoordinator[QuartermasterData]):
         elif event.event in FORWARDED_EVENTS:
             data = {key: value for key, value in event.data.items() if key != "type"}
             self.hass.bus.async_fire(f"{EVENT_PREFIX}{event.event}", data)
-
-
-def _version(version: tuple[int, ...]) -> str:
-    return ".".join(str(part) for part in version)

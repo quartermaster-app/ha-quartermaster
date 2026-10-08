@@ -4,6 +4,16 @@ All notable changes to this integration. The format follows [Keep a Changelog](h
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-08
+
+### Changed
+
+- Servers are identified by Quartermaster's stable `server_id` instead of their address, so the same server under two addresses can't be added twice. Existing entries switch over automatically (config entry 1.2); servers without a `server_id` keep using the address.
+- Reconfigure and re-authenticate check that the address still points at the same Quartermaster server, and refuse a different one.
+- Server compatibility is checked with `ha_api` from `/api/status`: a server that doesn't report it (or reports an older one) raises the "server too old" repair, and a newer one raises a new "server is newer than this integration" repair.
+- Changing or removing an item that was already removed, cleared or merged in Quartermaster refreshes the list instead of failing.
+- Diagnostics show the Home Assistant API version and whether the server ID is in use.
+
 ## [0.2.0] - 2026-10-08
 
 ### Added
@@ -31,5 +41,6 @@ All notable changes to this integration. The format follows [Keep a Changelog](h
 
 - First release: the household list as a to-do entity, live updates over the event stream with polling fallback, voice attribution for satellites and users, `quartermaster_*` events, reauthentication and diagnostics.
 
-[Unreleased]: https://github.com/quartermaster-app/ha-quartermaster/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/quartermaster-app/ha-quartermaster/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/quartermaster-app/ha-quartermaster/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/quartermaster-app/ha-quartermaster/releases/tag/v0.2.0

@@ -31,7 +31,15 @@ async def test_diagnostics(
         assert secret not in text
     assert diag["entry"]["data"] == {"url": "**REDACTED**", "token": "**REDACTED**", "verify_ssl": True}
     assert diag["entry"]["title"] == "**REDACTED**"
-    assert diag["server"] == {"version": "0.1.0", "protocol": 1, "household_named": True}
+    assert diag["server"] == {
+        "version": "0.1.0",
+        "protocol": 1,
+        "ha_api": 1,
+        "reports_server_id": True,
+        "entry_uses_server_id": True,
+        "household_named": True,
+    }
+    assert "0192a3b4" not in text
     assert diag["items"] == {"total": 2, "needs_action": 1, "completed": 1, "with_description": 1}
     assert diag["presence"] == {"members": 2, "shopping": 1}
     assert diag["coordinator"]["polling_interval"] == 60

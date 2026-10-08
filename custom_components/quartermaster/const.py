@@ -10,8 +10,9 @@ LOGGER = logging.getLogger(__package__)
 DEFAULT_NAME: Final = "Quartermaster"
 MANUFACTURER: Final = "Quartermaster"
 
-# Oldest server version this integration knows how to talk to.
-MIN_SERVER_VERSION: Final = (0, 1, 0)
+# The Home Assistant API version (`ha_api` in /api/status) this integration speaks.
+# Servers bump it only on breaking changes.
+SUPPORTED_HA_API: Final = 1
 
 # Polling only runs while the event stream is down.
 FALLBACK_POLL_INTERVAL: Final = timedelta(seconds=60)
@@ -27,6 +28,7 @@ STREAM_UNAVAILABLE_AFTER: Final = timedelta(minutes=15)
 ISSUE_SERVER_UNREACHABLE: Final = "server_unreachable"
 ISSUE_STREAM_UNAVAILABLE: Final = "stream_unavailable"
 ISSUE_UNSUPPORTED_VERSION: Final = "unsupported_server_version"
+ISSUE_INCOMPATIBLE_SERVER: Final = "incompatible_server"
 
 # Server events re-fired on the Home Assistant bus as quartermaster_<name>.
 FORWARDED_EVENTS: Final = ("request_added", "trip_started", "trip_ended")

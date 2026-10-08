@@ -102,6 +102,7 @@ async def main(url: str) -> None:
         qm = api.QuartermasterClient(session, url + "/", ha_token)
         status = await qm.async_get_status()
         check(status.household_name == "Maple Street" and not status.setup_required, f"status: {status}")
+        check(bool(status.server_id) and status.ha_api == 1, "status reports server_id and ha_api 1")
         check(await qm.async_get_items() == [], "empty list")
         presence = await qm.async_get_presence()
         check(len(presence) == 2 and not any(p.shopping for p in presence), "presence: two members, nobody shopping")
@@ -147,6 +148,11 @@ async def main(url: str) -> None:
         check(undone.status is api.ItemStatus.NEEDS_ACTION, "uncheck (voids the Home Assistant purchase)")
         await qm.async_delete_item(target.uid)
         check(all(i.uid != target.uid for i in await qm.async_get_items()), "delete an open item cancels it")
+        try:
+            await qm.async_update_item(target.uid, summary="ghost")
+            check(False, "update a removed item")
+        except api.QuartermasterNotFoundError:
+            check(True, "update a removed item -> QuartermasterNotFoundError")
         try:
             await qm.async_update_item(str(uuid.uuid4()), summary="ghost")
             check(False, "update an unknown item")

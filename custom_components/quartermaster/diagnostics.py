@@ -14,6 +14,7 @@ from .api import ItemStatus
 from .attribution import async_wrapped_intents
 from .const import DOMAIN
 from .coordinator import ISSUES, QuartermasterConfigEntry, issue_id
+from .identity import knows_server_id
 
 # The household name and server address identify the household; the token is a secret.
 TO_REDACT = {CONF_TOKEN, CONF_URL, "title", "unique_id", "household"}
@@ -29,6 +30,9 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: Quarter
         "server": {
             "version": coordinator.status.version,
             "protocol": coordinator.status.protocol,
+            "ha_api": coordinator.status.ha_api,
+            "reports_server_id": coordinator.status.server_id is not None,
+            "entry_uses_server_id": knows_server_id(entry),
             "household_named": coordinator.status.household_name is not None,
         },
         "items": {

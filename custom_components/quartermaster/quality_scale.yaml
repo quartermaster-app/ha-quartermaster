@@ -49,7 +49,9 @@ rules:
   test-before-setup: done
   unique-config-entry:
     status: done
-    comment: One entry per server address (normalized, case-insensitive).
+    comment: >-
+      One entry per server, by the server's stable server_id (by normalized
+      address for servers that don't report one yet).
 
   # Silver
   action-exceptions:
@@ -109,14 +111,15 @@ rules:
   reconfiguration-flow:
     status: done
     comment: >-
-      Changes the address, token or certificate checking. Quartermaster has no
-      server ID yet, so the unique ID follows the address and a reconfigure that
-      would collide with another entry is refused.
+      Changes the address, token or certificate checking. The unique ID is the
+      server's stable server_id, and a reconfigure (or reauth) that reaches a
+      different server is aborted (wrong_server).
   repair-issues:
     status: done
     comment: >-
       Server unreachable for 30 minutes, live updates blocked (usually a reverse
-      proxy) for 15 minutes, and server too old. Each clears itself when fixed.
+      proxy) for 15 minutes, server too old and server newer than the
+      integration (by ha_api). Each clears itself when fixed.
   stale-devices:
     status: exempt
     comment: Exactly one device per config entry; it is removed with the entry.

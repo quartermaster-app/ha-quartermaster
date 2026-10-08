@@ -26,6 +26,7 @@ from .api import (
 )
 from .const import DOMAIN, LOGGER
 from .coordinator import device_name
+from .identity import is_other_server, knows_server_id, unique_id_for, url_unique_id
 
 URL_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
 TOKEN_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
@@ -47,21 +48,26 @@ RECONFIGURE_SCHEMA = vol.Schema(
 )
 
 
-def unique_id_for(url: str) -> str:
-    """Servers are identified by their address."""
-    return normalize_url(url).lower()
-
-
 class QuartermasterConfigFlow(ConfigFlow, domain=DOMAIN):
     """Connect to a Quartermaster server with a Home Assistant token."""
 
     VERSION = 1
+    # 1.2: the unique ID is the server ID (see identity.py), not the address.
+    MINOR_VERSION = 2
+
+    def _address_in_use(self, url: str, exclude_entry_id: str | None = None) -> bool:
+        """Return True when another entry already uses this address."""
+        return any(
+            url_unique_id(other.data[CONF_URL]) == url_unique_id(url)
+            for other in self._async_current_entries(include_ignore=False)
+            if other.entry_id != exclude_entry_id
+        )
 
     async def _async_validate(
         self, url: str, token: str, verify_ssl: bool
     ) -> tuple[dict[str, str], ServerStatus | None]:
         """Check the server and the token. Returns (errors, server status)."""
-        if not url.startswith(("http://", "https://")):
+        if not url.lower().startswith(("http://", "https://")):
             return {CONF_URL: "invalid_url"}, None
         client = QuartermasterClient(async_get_clientsession(self.hass, verify_ssl=verify_ssl), url, token)
         try:
@@ -89,10 +95,12 @@ class QuartermasterConfigFlow(ConfigFlow, domain=DOMAIN):
             url = normalize_url(user_input[CONF_URL])
             token = user_input[CONF_TOKEN].strip()
             verify_ssl = user_input[CONF_VERIFY_SSL]
-            await self.async_set_unique_id(unique_id_for(url))
-            self._abort_if_unique_id_configured()
+            if self._address_in_use(url):
+                return self.async_abort(reason="already_configured")
             errors, status = await self._async_validate(url, token, verify_ssl)
             if status is not None:
+                await self.async_set_unique_id(unique_id_for(status, url))
+                self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=device_name(status),
                     data={CONF_URL: url, CONF_TOKEN: token, CONF_VERIFY_SSL: verify_ssl},
@@ -113,8 +121,12 @@ class QuartermasterConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             token = user_input[CONF_TOKEN].strip()
-            errors, _ = await self._async_validate(entry.data[CONF_URL], token, entry.data.get(CONF_VERIFY_SSL, True))
-            if not errors:
+            errors, status = await self._async_validate(
+                entry.data[CONF_URL], token, entry.data.get(CONF_VERIFY_SSL, True)
+            )
+            if status is not None:
+                if is_other_server(entry, status):
+                    return self.async_abort(reason="wrong_server")
                 return self.async_update_reload_and_abort(entry, data_updates={CONF_TOKEN: token})
         return self.async_show_form(
             step_id="reauth_confirm",
@@ -131,15 +143,22 @@ class QuartermasterConfigFlow(ConfigFlow, domain=DOMAIN):
             url = normalize_url(user_input[CONF_URL])
             token = (user_input.get(CONF_TOKEN) or "").strip() or entry.data[CONF_TOKEN]
             verify_ssl = user_input[CONF_VERIFY_SSL]
-            unique_id = unique_id_for(url)
-            if unique_id != entry.unique_id and any(
-                other.unique_id == unique_id
-                for other in self._async_current_entries()
-                if other.entry_id != entry.entry_id
-            ):
+            if self._address_in_use(url, exclude_entry_id=entry.entry_id):
                 return self.async_abort(reason="already_configured")
-            errors, _ = await self._async_validate(url, token, verify_ssl)
-            if not errors:
+            errors, status = await self._async_validate(url, token, verify_ssl)
+            if status is not None:
+                # Only allow moving to the same server, when we can tell.
+                if knows_server_id(entry) and status.server_id is None:
+                    return self.async_abort(reason="cannot_verify_server")
+                if is_other_server(entry, status):
+                    return self.async_abort(reason="wrong_server")
+                unique_id = unique_id_for(status, url)
+                if any(
+                    other.unique_id == unique_id
+                    for other in self._async_current_entries(include_ignore=False)
+                    if other.entry_id != entry.entry_id
+                ):
+                    return self.async_abort(reason="already_configured")
                 return self.async_update_reload_and_abort(
                     entry,
                     unique_id=unique_id,

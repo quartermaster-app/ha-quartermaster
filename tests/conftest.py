@@ -20,7 +20,15 @@ TOKEN = "qm_testtoken"
 HOUSEHOLD = "Maple Street"
 ENTITY = "todo.maple_street"
 
-STATUS = {"version": "0.1.0", "protocol": 1, "setup_required": False, "household": HOUSEHOLD}
+SERVER_ID = "0192a3b4-0000-7000-8000-000000000001"
+STATUS = {
+    "server_id": SERVER_ID,
+    "version": "0.1.0",
+    "protocol": 1,
+    "ha_api": 1,
+    "setup_required": False,
+    "household": HOUSEHOLD,
+}
 ITEMS = [
     {"uid": "req-1", "summary": "Eggs", "description": "2 dozen", "status": "needs_action"},
     {"uid": "req-2", "summary": "Bread", "description": None, "status": "completed"},
@@ -42,7 +50,9 @@ def config_entry() -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
         title=HOUSEHOLD,
-        unique_id=URL,
+        unique_id=SERVER_ID,
+        version=1,
+        minor_version=2,
         data={"url": URL, "token": TOKEN, "verify_ssl": True},
     )
 
