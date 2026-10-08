@@ -1,0 +1,12 @@
+{
+  "domain": "quartermaster",
+  "name": "Quartermaster",
+  "codeowners": ["@Nick2253"],
+  "config_flow": true,
+  "documentation": "https://github.com/quartermaster-app/ha-quartermaster",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/quartermaster-app/ha-quartermaster/issues",
+  "requirements": [],
+  "version": "0.2.0"
+}

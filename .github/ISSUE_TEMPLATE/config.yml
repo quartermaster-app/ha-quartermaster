@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Quartermaster app
+    url: https://github.com/quartermaster-app
+    about: Problems with Quartermaster itself (the app, sorting, stores) belong in the Quartermaster repository.

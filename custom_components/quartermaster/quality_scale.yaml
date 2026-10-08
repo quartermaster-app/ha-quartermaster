@@ -1,0 +1,133 @@
+# Self-assessment against the Home Assistant Integration Quality Scale
+# (https://developers.home-assistant.io/docs/core/integration-quality-scale/).
+# Home Assistant doesn't validate this file for custom integrations; it records
+# how each rule is met so the integration is ready for a core submission.
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: No custom actions. The list uses the standard todo actions.
+  appropriate-polling:
+    status: done
+    comment: >-
+      Push over Quartermaster's event stream. Polls every 60 s only while the
+      stream is down, and stops as soon as it reconnects.
+  brands:
+    status: done
+    comment: In-repo brand images in brand/ (icon, logo, dark logo, @2x).
+  common-modules:
+    status: done
+    comment: coordinator.py and entity.py; the API client is a separate package in api/.
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency:
+    status: exempt
+    comment: >-
+      No external requirements. The async API client is bundled in api/ with no
+      Home Assistant imports, ready to move to a PyPI library for a core submission.
+  docs-actions:
+    status: exempt
+    comment: >-
+      No custom actions. How the standard todo actions map to Quartermaster is
+      documented under "How items map".
+  docs-conditions:
+    status: exempt
+    comment: No conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: No trigger platform. The quartermaster_* bus events are documented under "Events".
+  entity-event-setup:
+    status: done
+    comment: Entities subscribe only through CoordinatorEntity.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry:
+    status: done
+    comment: One entry per server address (normalized, case-insensitive).
+
+  # Silver
+  action-exceptions:
+    status: done
+    comment: >-
+      Todo actions raise ServiceValidationError for bad input or rejected changes
+      and HomeAssistantError for connection and server failures.
+  config-entry-unloading: done
+  docs-configuration-parameters:
+    status: exempt
+    comment: No options flow. The setup fields are documented under docs-installation-parameters.
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage:
+    status: done
+    comment: 100% line and branch coverage.
+
+  # Gold
+  devices:
+    status: done
+    comment: One service device per Quartermaster server, named after the household, with the server version.
+  diagnostics:
+    status: done
+    comment: Redacts the token, server address, household name and entry title; never includes item text.
+  discovery:
+    status: exempt
+    comment: Quartermaster servers don't advertise themselves (no zeroconf, SSDP or DHCP).
+  discovery-update-info:
+    status: exempt
+    comment: Not discoverable.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices:
+    status: exempt
+    comment: A self-hosted web service, not a device. Supported server versions are documented.
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices:
+    status: exempt
+    comment: Exactly one device per config entry, created with the entry.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default:
+    status: done
+    comment: The live updates diagnostic is disabled by default.
+  entity-translations:
+    status: done
+    comment: The to-do list takes the device (household) name; the sensors use translation keys.
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow:
+    status: done
+    comment: >-
+      Changes the address, token or certificate checking. Quartermaster has no
+      server ID yet, so the unique ID follows the address and a reconfigure that
+      would collide with another entry is refused.
+  repair-issues:
+    status: done
+    comment: >-
+      Server unreachable for 30 minutes, live updates blocked (usually a reverse
+      proxy) for 15 minutes, and server too old. Each clears itself when fixed.
+  stale-devices:
+    status: exempt
+    comment: Exactly one device per config entry; it is removed with the entry.
+
+  # Platinum
+  async-dependency:
+    status: done
+    comment: The bundled api/ client is fully async on aiohttp.
+  inject-websession:
+    status: done
+    comment: The client takes Home Assistant's shared aiohttp session (async_get_clientsession).
+  strict-typing:
+    status: done
+    comment: mypy --strict passes in CI.

@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest something the integration could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: The goal or use case, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How might it work?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried instead?

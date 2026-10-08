@@ -1,0 +1,25 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "live_updates": {
+        "default": "mdi:lan-connect",
+        "state": {
+          "off": "mdi:lan-disconnect"
+        }
+      }
+    },
+    "sensor": {
+      "shoppers": {
+        "default": "mdi:cart-outline",
+        "range": {
+          "1": "mdi:cart"
+        }
+      }
+    },
+    "todo": {
+      "shopping_list": {
+        "default": "mdi:format-list-checks"
+      }
+    }
+  }
+}

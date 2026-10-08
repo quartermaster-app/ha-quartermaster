@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in the Home Assistant integration doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Problems with the Quartermaster app itself belong in the Quartermaster repository. Please remove tokens and server addresses from anything you paste.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.10.0"
+    validations:
+      required: true
+  - type: input
+    id: qm_version
+    attributes:
+      label: Quartermaster server version
+      description: Shown on the device page in Home Assistant, or under Settings in Quartermaster.
+      placeholder: "0.1.0"
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installed with
+      options:
+        - HACS
+        - Manually
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Settings → Devices & services → Quartermaster → three-dot menu → Download diagnostics. Drag the file here.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: With debug logging on for `custom_components.quartermaster`, if possible.
+      render: text

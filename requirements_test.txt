@@ -1,0 +1,5 @@
+# Home Assistant 2026.10.0 (needs Python 3.14). CI also runs the tests
+# against the oldest supported release; see .github/workflows/validate.yml.
+pytest-homeassistant-custom-component==0.13.371
+mypy==2.4.0
+ruff==0.16.10

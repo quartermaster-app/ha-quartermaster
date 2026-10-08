@@ -1,0 +1,110 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Quartermaster",
+        "description": "Create a token in Quartermaster under **Settings → New Home Assistant token** (admins only), then paste it here.",
+        "data": {
+          "url": "Server address",
+          "token": "Home Assistant token",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "url": "The address you open Quartermaster at in a browser, including http or https at the start.",
+          "token": "Starts with qm_. Quartermaster shows it once, when you create it.",
+          "verify_ssl": "Turn off only for a server with a self-signed certificate."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Quartermaster token rejected",
+        "description": "{url} no longer accepts the saved token. Create a new one in Quartermaster under **Settings → New Home Assistant token**.",
+        "data": {
+          "token": "Home Assistant token"
+        },
+        "data_description": {
+          "token": "Starts with qm_. Quartermaster shows it once, when you create it."
+        }
+      },
+      "reconfigure": {
+        "title": "Change the Quartermaster connection",
+        "description": "Use this when Quartermaster moved to a new address. Leave the token empty to keep the current one.",
+        "data": {
+          "url": "Server address",
+          "token": "Home Assistant token",
+          "verify_ssl": "Verify SSL certificate"
+        },
+        "data_description": {
+          "url": "The address you open Quartermaster at in a browser, including http or https at the start.",
+          "token": "A new token, or empty to keep the current one.",
+          "verify_ssl": "Turn off only for a server with a self-signed certificate."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Couldn't reach Quartermaster at that address.",
+      "invalid_auth": "Quartermaster rejected the token. Make sure it is a Home Assistant token, not a device token.",
+      "invalid_url": "Enter the full address, starting with http:// or https://.",
+      "not_quartermaster": "That address answers, but it isn't a Quartermaster server.",
+      "setup_required": "This Quartermaster server hasn't been set up yet. Open it in a browser and finish setup first.",
+      "unknown": "Unexpected error. Check the logs."
+    },
+    "abort": {
+      "already_configured": "This Quartermaster server is already set up.",
+      "reauth_successful": "Token updated.",
+      "reconfigure_successful": "Connection updated."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "live_updates": {
+        "name": "Live updates"
+      }
+    },
+    "sensor": {
+      "shoppers": {
+        "name": "Shoppers",
+        "unit_of_measurement": "shoppers"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Couldn't reach Quartermaster: {error}"
+    },
+    "empty_item": {
+      "message": "Say or type what to add."
+    },
+    "invalid_auth": {
+      "message": "Quartermaster rejected the token. Open the integration to enter a new one."
+    },
+    "item_gone": {
+      "message": "That item is no longer on the Quartermaster list ({error})."
+    },
+    "item_not_found": {
+      "message": "No item {item} on the Quartermaster list."
+    },
+    "request_rejected": {
+      "message": "Quartermaster refused the change: {error}"
+    },
+    "server_error": {
+      "message": "Quartermaster had a problem with the change: {error}"
+    },
+    "update_failed": {
+      "message": "Couldn't read the Quartermaster list: {error}"
+    }
+  },
+  "issues": {
+    "server_unreachable": {
+      "title": "Quartermaster server unreachable",
+      "description": "Home Assistant hasn't been able to reach Quartermaster at {url} ({title}) for over 30 minutes. The list in Home Assistant is unavailable until it can.\n\nCheck that the server is running. If it moved to a new address, open **Settings → Devices & services → Quartermaster**, choose the three-dot menu on the entry and **Reconfigure**. This issue clears itself once the server answers again."
+    },
+    "stream_unavailable": {
+      "title": "Quartermaster live updates aren't working",
+      "description": "Quartermaster ({title}) answers, but its event stream hasn't connected for over 15 minutes (last error: {error}). Home Assistant falls back to checking the list every minute, so changes show up late and the `quartermaster_*` events don't fire.\n\nThis is almost always a reverse proxy buffering or closing `text/event-stream` responses on `/api/events`. Turn off response buffering for that path (for nginx, `proxy_buffering off;`) and make sure idle connections can stay open for at least 60 seconds. This issue clears itself once the stream connects."
+    },
+    "unsupported_server_version": {
+      "title": "Quartermaster server is too old",
+      "description": "{title} runs Quartermaster {version}, but this integration needs {min_version} or later. Some features may not work. Update the Quartermaster server; this issue clears itself once it reconnects with a supported version."
+    }
+  }
+}
