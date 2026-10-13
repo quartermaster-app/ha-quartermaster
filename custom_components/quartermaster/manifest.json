@@ -1,7 +1,7 @@
 {
   "domain": "quartermaster",
   "name": "Quartermaster",
-  "codeowners": ["@Nick2253"],
+  "codeowners": ["@quartermaster-app/maintainers"],
   "config_flow": true,
   "documentation": "https://github.com/quartermaster-app/ha-quartermaster",
   "integration_type": "service",
